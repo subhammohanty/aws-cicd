@@ -30,6 +30,8 @@ public class CourseController {
         return new ResponseEntity<>(courses, HttpStatus.OK);
     }
 
+
+
     @GetMapping(value = "/{id}", produces = "application/json")
     public ResponseEntity<Course> getCourseById(@PathVariable int id) {
         Optional<Course> course = courseService.getCourseById(id);
