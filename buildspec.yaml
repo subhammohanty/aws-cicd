@@ -1,0 +1,40 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - echo Installing required tools...
+      - choco install maven -y
+      - choco install docker-cli -y
+      - choco install awscli -y
+  pre_build:
+    commands:
+      - mvn clean install
+      - echo Logging in to Amazon ECR...
+      - aws --version
+      - set REPOSITORY_URI=767397745073.dkr.ecr.ap-south-1.amazonaws.com/javalearner-repo
+      - for /f "tokens=*" %i in ('aws ecr get-login-password --region ap-south-1') do docker login --username AWS --password %i %REPOSITORY_URI%
+      - for /f "tokens=1,2 delims=:" %i in ('echo %CODEBUILD_BUILD_ID%') do set IMAGE_TAG=build-%j
+      - for /f "tokens=1-7" %i in ('echo %CODEBUILD_RESOLVED_SOURCE_VERSION%') do set COMMIT_HASH=%i
+  build:
+    commands:
+      - echo Build started on %DATE% %TIME%
+      - echo Building the Docker image...
+      - docker build -t %REPOSITORY_URI%:latest .
+      - docker tag %REPOSITORY_URI%:latest %REPOSITORY_URI%:%IMAGE_TAG%
+  post_build:
+    commands:
+      - echo Build completed on %DATE% %TIME%
+      - echo Pushing the Docker images...
+      - docker push %REPOSITORY_URI%:latest
+      - docker push %REPOSITORY_URI%:%IMAGE_TAG%
+      - echo Writing image definitions file...
+      - set DOCKER_CONTAINER_NAME=javalearner-repo
+      - echo [{"name":"%DOCKER_CONTAINER_NAME%","imageUri":"%REPOSITORY_URI%:%IMAGE_TAG%"}] > imagedefinitions.json
+      - echo Printing imagedefinitions.json...
+      - type imagedefinitions.json
+
+artifacts:
+  files:
+    - imagedefinitions.json
+    - target/course-service.jar
